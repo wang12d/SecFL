@@ -5,7 +5,7 @@ from utils.timing import timecal
 from utils.ABY import Role
 
 
-alpha = 0.2
+alpha = 1e-4
 epochs = 200
 batch_size = 100
 batch_list = []
@@ -57,7 +57,8 @@ def model_aggregation(weights):
 def loss_compute(role, x_theta, theta, mu):
 
     # calculate the second
-    loss = 1/4 * np.dot(theta.T, mu)
+    loss = -1/2 * np.dot(mu, theta)
+
     loss = loss_first_computation(role, loss)
 
     # calculate the first
@@ -69,8 +70,8 @@ def loss_compute(role, x_theta, theta, mu):
 
     loss = loss + 1/8 * np.dot(x_theta_sum, x_theta_sum)
 
-    # divide h
-    return loss / number
+    # divide h and plus log(2)
+    return np.log(2) + loss / number
 
 
 def grad_compute(role, x_theta, x, Y):
@@ -97,7 +98,7 @@ def mu_cache(role, X, Y, client_feature_num):
     number = X.shape[0]
 
     if(role == Role.SERVER):
-        mu = 0.69314718056 - np.dot(Y.transpose(), X) / number
+        mu = np.dot(Y.transpose(), X)
 
         for i in range(client_feature_num):
             loss_mu_computation(role, number, Y)
@@ -108,9 +109,9 @@ def mu_cache(role, X, Y, client_feature_num):
             col = np.array(X[:, i]).squeeze()
 
             ret = loss_mu_computation(role, number, col)
-            mu.append(0.69314718056 - ret / number)
+            mu.append(ret)
         mu = np.array(mu)
-    return np.mat(mu).transpose()
+    return np.mat(mu)
 
 
 def batch_train(role, features, labels, weights):

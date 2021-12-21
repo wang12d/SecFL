@@ -3,8 +3,8 @@ import numpy as np
 from utils.logging import logger
 from utils.timing import timecal
 from utils.baseline import communicate
-from utils.common import Role, Config
-
+from utils.common import Role
+from sklearn.metrics import precision_score, accuracy_score, recall_score
 
 secureLR = ctypes.CDLL("ABY/build/lib/libsecureLR.so")
 secureLR.loss_mu_computation.restype = ctypes.c_double
@@ -122,29 +122,29 @@ def batch_train(role, config, features, labels, weights):
     return weights
 
 
-def grad_descent(role, config, features, labels, weights):
+def grad_descent(role, config, X_train, X_test, y_train, y_test, weights):
 
     loss_array = []
-    num = int(features.shape[0] / config.batch_size)
+    num = int(X_train.shape[0] / config.batch_size)
     for i in range(num):
         config.batch_list.append([i*config.batch_size, (i+1)*config.batch_size-1])
-    config.batch_list.append([num*config.batch_size, features.shape[0]])
+    config.batch_list.append([num*config.batch_size, X_train.shape[0]])
 
-    mu = timecal(mu_cache)(role, config, features, labels)
+    mu = timecal(mu_cache)(role, config, X_train, y_train)
 
     for i in range(config.epochs):
         logger.debug(f"Epoch: {i}")
 
-        x_theta = np.dot(features, weights)
+        x_theta = np.dot(X_train, weights)
 
-        weights = timecal(batch_train)(role, config, features, labels, weights)
+        weights = timecal(batch_train)(role, config, X_train, y_train, weights)
 
-        x_theta = np.dot(features, weights)
+        x_theta = np.dot(X_train, weights)
         loss = timecal(ABY_loss_compute)(role, config.encryted, x_theta, weights,  mu)
 
         print(f"weights :\n {weights}")
         loss_array.append(loss)
-        test(role, weights, features, labels)
+        test(role, config, weights, X_test, y_test)
         print(f"loss : {loss}")
 
     # print("weights shape: ", weights.shape)
@@ -153,7 +153,7 @@ def grad_descent(role, config, features, labels, weights):
     return weights, loss_array
 
 
-def test(role, weights, features, labels):
+def test(role, config, weights, features, labels):
     def sigmoid(x):
         x_ravel = x.ravel()
         length = len(x_ravel)
@@ -168,21 +168,23 @@ def test(role, weights, features, labels):
     x_theta = np.array(np.dot(features, weights)).T.squeeze().tolist()
     other_x_theta = eval(communicate(role, str(x_theta)))
     x_theta = np.array(x_theta) + np.array(other_x_theta)
+    labels = np.array(labels.transpose()).squeeze().tolist()
 
-    pred = sigmoid(x_theta)
+    pred = sigmoid(x_theta).tolist()
 
-    cnt = 0
-    total = len(labels)
-    for i, j in zip(pred, labels):
-        if (i < 0.5 and j == 0.0) or (i >= 0.5 and j == 1.0):
-            cnt = cnt + 1
+    for i in range(len(pred)):
+        if (pred[i] < config.threshold):
+            pred[i] = 0.0
+        else:
+            pred[i] = 1.0
 
-    # np.set_printoptions(threshold=np.inf)
-    # logger.info(np.column_stack((pred, labels)))
+    logger.info(f"Accuracy Score: {accuracy_score(labels,pred) *100:.3f}%")
+    logger.info(f"Precision Score: {precision_score(labels,pred) *100:.3f}%")
+    logger.info(f"Recall Score: {recall_score(labels,pred) *100:.3f}%")
 
-    logger.info(f"Accuracy: {(cnt/total)*100:.3f}%")
 
-
-def train(role, config, features, labels, weights):
+def train(role, config, X_train, X_test, y_train, y_test):
     logger.info(f"{'Server' if role == Role.SERVER else 'Client' } start")
-    weights, _ = grad_descent(role, config, features, labels, weights)
+
+    weights = np.mat(np.zeros((np.shape(X_train)[1], 1), dtype=np.float32))
+    weights, _ = grad_descent(role, config, X_train, X_test, y_train, y_test, weights)

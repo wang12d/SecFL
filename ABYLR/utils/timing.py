@@ -8,7 +8,6 @@ def timecal(func):
         start = timeit.default_timer()
         ret = func(*args, **kwargs)
         end = timeit.default_timer()
-        # print('Time taken: ', end - start)
-        logger.info(f"Time cost: {end - start:.3f}")
+        logger.debug(f"Time cost: {end - start:.3f}")
         return ret
     return wrapper

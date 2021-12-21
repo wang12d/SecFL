@@ -5,7 +5,7 @@ from utils.algorithm import Role
 from utils.common import Config
 
 
-config = Config(client_feature_num=6, encryted=False, alpha=0.3, epochs=50)
+config = Config(client_feature_num=6, encryted=False, alpha=0.3, epochs=20, threshold=0.6)
 
 
 def parse_data(role):
@@ -25,11 +25,5 @@ def parse_data(role):
 
     features = np.mat(features, dtype=np.float32)
     labels = np.mat(labels, dtype=np.float32).transpose()
-    weights = np.mat(np.zeros((np.shape(features)[1], 1), dtype=np.float32))
-    # weights = np.random.rand(np.shape(features)[1], 1)
-    # logger.info(f"features.shape: {features.shape}")
-    # logger.info(f"labels.shape: {labels.shape}")
-    # logger.info(f"weights.shape: {weights.shape}")
-    # logger.info(f"init weights:")
-    # print(weights)
-    return features, labels, weights
+
+    return features, labels

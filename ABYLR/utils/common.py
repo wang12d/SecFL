@@ -5,10 +5,11 @@ class Role:
 
 
 class Config:
-    def __init__(self, client_feature_num, alpha=0.1,encryted=False, epochs=20, batch_size=100):
+    def __init__(self, client_feature_num, alpha=0.1, encryted=False, epochs=20, batch_size=100, threshold=0.5):
         self.alpha = alpha
         self.epochs = epochs
         self.encryted = encryted
         self.client_feature_num = client_feature_num
         self.batch_size = batch_size
         self.batch_list = []
+        self.threshold = threshold

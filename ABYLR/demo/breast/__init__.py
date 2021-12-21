@@ -4,7 +4,8 @@ from sklearn.preprocessing import StandardScaler
 from utils.algorithm import Role
 from utils.common import Config
 
-config = Config(client_feature_num=12, encryted=True, alpha=1e-5, epochs=50)
+
+config = Config(client_feature_num=12, encryted=True, alpha=1e-4, epochs=500)
 
 
 def parse_data(role):
@@ -28,11 +29,5 @@ def parse_data(role):
     labels = np.mat(labels, dtype=np.float32).transpose()
     # print(labels)
 
-    weights = np.mat(np.zeros((np.shape(features)[1], 1), dtype=np.float32))
-    # weights = np.random.rand(np.shape(features)[1], 1)
-    # logger.info(f"features.shape: {features.shape}")
-    # logger.info(f"labels.shape: {labels.shape}")
-    # logger.info(f"weights.shape: {weights.shape}")
-    # logger.info(f"init weights:")
-    # print(weights)
-    return features, labels, weights
+    
+    return features, labels

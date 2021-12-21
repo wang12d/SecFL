@@ -1,4 +1,4 @@
-from utils.comm import recvby, sendby
+from utils.baseline import recvby, sendby
 import numpy as np
 
 

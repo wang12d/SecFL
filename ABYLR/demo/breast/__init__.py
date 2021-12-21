@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
-from sklearn import preprocessing
-from utils.ABY import Role, main
+from sklearn.preprocessing import StandardScaler
+from utils.algorithm import Role
+scaler = StandardScaler()
 
 client_feature_num = 12
 
@@ -14,7 +15,7 @@ def parse_data(role):
         features = np.array(data[:, 2:-12], dtype=np.float32)
     else:
         features = np.array(data[:, -12:-1], dtype=np.float32)
-    features = preprocessing.scale(features)
+    features = scaler.fit_transform(features)
     features = np.insert(features, np.shape(features)[1], 1, axis=1)
     labels = np.array(data[:, 1])
     for i in range(len(labels)):

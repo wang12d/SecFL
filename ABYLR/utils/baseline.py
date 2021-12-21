@@ -1,4 +1,5 @@
 import socket
+from utils.common import Role
 
 port = [8082,8083]
 
@@ -39,4 +40,13 @@ def recvby(role):
     return total_data
 
 
+def communicate(role, data):
+    data = str(data)
+    if(role == Role.SERVER):
+        other_data = recvby(role)
+        sendby(role, data)
+    else:
+        sendby(role, data)
+        other_data = recvby(role)
+    return other_data
 

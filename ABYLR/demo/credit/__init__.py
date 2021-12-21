@@ -1,12 +1,14 @@
 import pandas as pd
 import numpy as np
-from sklearn import preprocessing
-from utils.ABY import Role, main
+from sklearn.preprocessing import StandardScaler
+from utils.algorithm import Role
+scaler = StandardScaler()
 
 client_feature_num = 12
 
 
 client_feature_num = 6
+
 
 def parse_data(role):
     data = pd.read_csv("data/cs-training.csv")
@@ -18,14 +20,12 @@ def parse_data(role):
     else:
         features = np.array(data[:, 7:12], dtype=np.float32)
 
-    features = preprocessing.scale(features)
+    features = scaler.fit_transform(features)
     features = np.insert(features, np.shape(features)[1], 1, axis=1)
     labels = np.array(data[:, 1])
 
     features = np.mat(features, dtype=np.float32)
     labels = np.mat(labels, dtype=np.float32).transpose()
-    # print(labels)
-
     weights = np.mat(np.zeros((np.shape(features)[1], 1), dtype=np.float32))
     # weights = np.random.rand(np.shape(features)[1], 1)
     # logger.info(f"features.shape: {features.shape}")

@@ -58,4 +58,4 @@ class ColoredLogger(logging.Logger):
 logging.setLoggerClass(ColoredLogger)
 
 
-logger = ColoredLogger("ABY-Logger")
+logger = ColoredLogger("Logger")

@@ -74,36 +74,34 @@ def ABY_grad_compute(role, encryted, x_theta, x, Y):
         w = np.array(w, dtype=np.float32).reshape(number, 1)
     else:
         other_wpart = np.array(eval(communicate(role, wpart)))
-        wpart += other_wpart
-        w = np.mat(wpart).transpose()
-
+        w = np.mat(wpart+other_wpart).transpose()
     # X.transpose() \times w
     return np.dot(x.transpose(), w) / number
 
 
-def mu_cache(role, encryted, X, Y, client_feature_num):
+def mu_cache(role, config, X, Y):
     number = X.shape[0]
 
     if(role == Role.SERVER):
         mu = np.dot(Y.transpose(), X)
-        if(encryted):
+        if(config.encryted):
             Y = (ctypes.c_double * number)(*Y)
-            for i in range(client_feature_num):
+            for i in range(config.client_feature_num):
                 secureLR.loss_mu_computation(role, number, Y)
         else:
-            for i in range(client_feature_num):
+            for i in range(config.client_feature_num):
                 loss_mu_computation(role, number, Y)
     else:
-        assert(X.shape[1] == client_feature_num)
+        assert(X.shape[1] == config.client_feature_num)
         mu = []
-        if(encryted):
-            for i in range(client_feature_num):
+        if(config.encryted):
+            for i in range(config.client_feature_num):
                 col = np.array(X[:, i]).squeeze().tolist()
                 col = (ctypes.c_double * number)(*col)
                 ret = secureLR.loss_mu_computation(role, number, col)
                 mu.append(ret)
         else:
-            for i in range(client_feature_num):
+            for i in range(config.client_feature_num):
                 col = np.array(X[:, i]).squeeze()
                 ret = loss_mu_computation(role, number, col)
                 mu.append(ret)
@@ -124,7 +122,7 @@ def batch_train(role, config, features, labels, weights):
     return weights
 
 
-def grad_descent(role, config, features, labels, weights, client_feature_num):
+def grad_descent(role, config, features, labels, weights):
 
     loss_array = []
     num = int(features.shape[0] / config.batch_size)
@@ -132,8 +130,7 @@ def grad_descent(role, config, features, labels, weights, client_feature_num):
         config.batch_list.append([i*config.batch_size, (i+1)*config.batch_size-1])
     config.batch_list.append([num*config.batch_size, features.shape[0]])
 
-    mu = timecal(mu_cache)(role, config.encryted, features, labels, client_feature_num)
-    print(mu)
+    mu = timecal(mu_cache)(role, config, features, labels)
 
     for i in range(config.epochs):
         logger.debug(f"Epoch: {i}")
@@ -150,7 +147,6 @@ def grad_descent(role, config, features, labels, weights, client_feature_num):
         test(role, weights, features, labels)
         print(f"loss : {loss}")
 
-    print("loss is: ", loss)
     # print("weights shape: ", weights.shape)
     print("weights is: ", weights)
 
@@ -187,6 +183,6 @@ def test(role, weights, features, labels):
     logger.info(f"Accuracy: {(cnt/total)*100:.3f}%")
 
 
-def main(role, config, features, labels, weights, client_feature_num):
+def train(role, config, features, labels, weights):
     logger.info(f"{'Server' if role == Role.SERVER else 'Client' } start")
-    weights, _ = grad_descent(role, config, features, labels, weights, client_feature_num)
+    weights, _ = grad_descent(role, config, features, labels, weights)

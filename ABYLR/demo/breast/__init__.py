@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from utils.algorithm import Role
-scaler = StandardScaler()
+from utils.common import Config
 
-client_feature_num = 12
+config = Config(client_feature_num=12, encryted=True, alpha=1e-5, epochs=50)
 
 
 def parse_data(role):
+    scaler = StandardScaler()
     global client_feature_num
     data = pd.read_csv("data/breast.csv")
     data = np.array(data.iloc[:, :])

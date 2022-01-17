@@ -42,7 +42,7 @@ def recvby(role):
 
 def communicate(role, data):
     data = str(data)
-    if(role == Role.SERVER):
+    if(role == Role.HOST):
         other_data = recvby(role)
         sendby(role, data)
     else:

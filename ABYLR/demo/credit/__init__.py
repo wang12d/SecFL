@@ -5,25 +5,26 @@ from utils.algorithm import Role
 from utils.common import Config
 
 
-config = Config(client_feature_num=6, encryted=False, alpha=0.3, epochs=20, threshold=0.6)
+config = Config(server_feature_num=5, encryted=False, alpha=0.1, epochs=20, threshold=0.6)
 
 
 def parse_data(role):
     scaler = StandardScaler()
-    data = pd.read_csv("data/cs-training.csv")
-    data = np.array(data.iloc[:, :])
-    data = data[~np.isnan(data).any(axis=1), :]
-    if(role == Role.SERVER):
-        features = np.array(data[:, 2:7], dtype=np.float32)
-
+    if (role == Role.GUEST):
+        data = pd.read_csv("data/give_credit_hetero_guest.csv")
+        data = np.around(np.array(data.iloc[:, :]), 5)
+        features = np.array(data[:, 2:], dtype=np.float32)
+        features = scaler.fit_transform(features)
+        features = np.insert(features, np.shape(features)[1], 1, axis=1)
+        features = np.mat(features, dtype=np.float32)
+        labels = np.mat(np.array(data[:, 1]), dtype=np.float32).transpose()
+        return features, labels
     else:
-        features = np.array(data[:, 7:12], dtype=np.float32)
+        data = pd.read_csv("data/give_credit_hetero_host.csv")
+        data = np.around(np.array(data.iloc[:, :]), 5)
+        features = np.array(data[:, 1:], dtype=np.float32)
+        features = scaler.fit_transform(features)
+        features = np.insert(features, np.shape(features)[1], 1, axis=1)
+        features = np.mat(features, dtype=np.float32)
 
-    features = scaler.fit_transform(features)
-    features = np.insert(features, np.shape(features)[1], 1, axis=1)
-    labels = np.array(data[:, 1])
-
-    features = np.mat(features, dtype=np.float32)
-    labels = np.mat(labels, dtype=np.float32).transpose()
-
-    return features, labels
+        return features

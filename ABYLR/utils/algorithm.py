@@ -4,7 +4,7 @@ from utils.logging import logger
 from utils.timing import timecal
 from utils.baseline import communicate
 from utils.common import Role
-from sklearn.metrics import precision_score, accuracy_score, recall_score
+from sklearn.metrics import precision_score, accuracy_score, recall_score, f1_score
 
 secureLR = ctypes.CDLL("ABY/build/lib/libsecureLR.so")
 secureLR.loss_mu_computation.restype = ctypes.c_double
@@ -55,11 +55,11 @@ def ABY_loss_compute(role, encryted, x_theta, theta, mu):
 
 def ABY_grad_compute(role, encryted, x_theta, x, Y):
     x_theta, Y = np.array(x_theta).squeeze(), np.array(Y).squeeze()
-    assert(x_theta.shape[0] == Y.shape[0])
     number = x_theta.shape[0]
-
+    assert(number != 0)
     # calculate w_a,w_b
-    if(role == Role.SERVER):
+    if(role == Role.GUEST):
+        assert(x_theta.shape[0] == Y.shape[0])
         wpart = 1/4 * x_theta - 1/2 * Y
     else:
         wpart = 1/4 * x_theta
@@ -82,26 +82,26 @@ def ABY_grad_compute(role, encryted, x_theta, x, Y):
 def mu_cache(role, config, X, Y):
     number = X.shape[0]
 
-    if(role == Role.SERVER):
+    if(role == Role.GUEST):
         mu = np.dot(Y.transpose(), X)
         if(config.encryted):
             Y = (ctypes.c_double * number)(*Y)
-            for i in range(config.client_feature_num):
+            for i in range(config.server_feature_num):
                 secureLR.loss_mu_computation(role, number, Y)
         else:
-            for i in range(config.client_feature_num):
+            for i in range(config.server_feature_num):
                 loss_mu_computation(role, number, Y)
     else:
-        assert(X.shape[1] == config.client_feature_num)
+        assert(X.shape[1] == config.server_feature_num)
         mu = []
         if(config.encryted):
-            for i in range(config.client_feature_num):
+            for i in range(config.server_feature_num):
                 col = np.array(X[:, i]).squeeze().tolist()
                 col = (ctypes.c_double * number)(*col)
                 ret = secureLR.loss_mu_computation(role, number, col)
                 mu.append(ret)
         else:
-            for i in range(config.client_feature_num):
+            for i in range(config.server_feature_num):
                 col = np.array(X[:, i]).squeeze()
                 ret = loss_mu_computation(role, number, col)
                 mu.append(ret)
@@ -110,15 +110,17 @@ def mu_cache(role, config, X, Y):
 
 
 def batch_train(role, config, features, labels, weights):
-
     for batch in config.batch_list:
         batch_features = features[batch[0]:batch[1], :]
-        batch_labels = labels[batch[0]:batch[1], :]
+        if(role == Role.GUEST):
+            batch_labels = labels[batch[0]:batch[1], :]
+        else:
+            batch_labels = None
         x_theta = np.dot(batch_features, weights)
         grad = ABY_grad_compute(role, config.encryted, x_theta, batch_features, batch_labels)
+
         weights = weights - config.alpha * grad
         weights = weights.reshape(weights.shape[0], 1)
-
     return weights
 
 
@@ -128,7 +130,8 @@ def grad_descent(role, config, X_train, X_test, y_train, y_test, weights):
     num = int(X_train.shape[0] / config.batch_size)
     for i in range(num):
         config.batch_list.append([i*config.batch_size, (i+1)*config.batch_size-1])
-    config.batch_list.append([num*config.batch_size, X_train.shape[0]])
+    if( num * config.batch_size < X_train.shape[0] - 1):
+        config.batch_list.append([num*config.batch_size, X_train.shape[0] - 1])
 
     mu = timecal(mu_cache)(role, config, X_train, y_train)
 
@@ -168,23 +171,22 @@ def test(role, config, weights, features, labels):
     x_theta = np.array(np.dot(features, weights)).T.squeeze().tolist()
     other_x_theta = eval(communicate(role, str(x_theta)))
     x_theta = np.array(x_theta) + np.array(other_x_theta)
-    labels = np.array(labels.transpose()).squeeze().tolist()
+    if(role == Role.GUEST):
+        labels = np.array(labels.transpose()).squeeze().tolist()
 
-    pred = sigmoid(x_theta).tolist()
+        pred = sigmoid(x_theta).tolist()
 
-    for i in range(len(pred)):
-        if (pred[i] < config.threshold):
-            pred[i] = 0.0
-        else:
-            pred[i] = 1.0
+        for i in range(len(pred)):
+            pred[i] = 0.0 if (pred[i] < config.threshold) else 1.0
 
-    logger.info(f"Accuracy Score: {accuracy_score(labels,pred) *100:.3f}%")
-    logger.info(f"Precision Score: {precision_score(labels,pred) *100:.3f}%")
-    logger.info(f"Recall Score: {recall_score(labels,pred) *100:.3f}%")
+        logger.info(f"Accuracy Score: {accuracy_score(labels,pred) *100:.3f}%")
+        logger.info(f"Precision Score: {precision_score(labels,pred) *100:.3f}%")
+        logger.info(f"Recall Score: {recall_score(labels,pred) *100:.3f}%")
+        logger.info(f"F1 Score: {f1_score(labels,pred):.3f}")
 
 
-def train(role, config, X_train, X_test, y_train, y_test):
-    logger.info(f"{'Server' if role == Role.SERVER else 'Client' } start")
+def train(role, config, X_train, X_test, y_train=None, y_test=None):
+    logger.info(f"{'Server' if role == Role.HOST else 'Client' } start")
 
     weights = np.mat(np.zeros((np.shape(X_train)[1], 1), dtype=np.float32))
     weights, _ = grad_descent(role, config, X_train, X_test, y_train, y_test, weights)
